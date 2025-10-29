@@ -255,6 +255,12 @@ class InteractiveDemo:
         elif cmd == "/export":
             self._export_history()
 
+        elif cmd == "/view":
+            await self._view_compressed()
+
+        elif cmd == "/context":
+            await self._show_current_context()
+
         elif cmd == "/quit" or cmd == "/exit":
             return False
 
@@ -275,7 +281,9 @@ class InteractiveDemo:
         commands = [
             ("/help", "显示此帮助信息"),
             ("/stats", "显示统计信息"),
-            ("/history", "查看对话历史"),
+            ("/history", "查看对话历史（简要）"),
+            ("/view", "查看压缩后的完整内容"),
+            ("/context", "查看当前发送给LLM的上下文"),
             ("/compress", "手动触发压缩"),
             ("/reset", "重置对话（保留知识库）"),
             ("/config", "查看当前配置"),
@@ -480,6 +488,148 @@ class InteractiveDemo:
                     print(f"✅ 知识库已导出: {kb_path}")
 
         print()
+
+    async def _view_compressed(self):
+        """
+        查看压缩后的完整内容
+        """
+        print("\n" + "=" * 60)
+        print_colored("📝 压缩后的上下文内容", "cyan", bold=True)
+        print("=" * 60 + "\n")
+
+        # 获取中期存储（压缩后的内容）
+        mid_term = self.manager.storage.get_mid_term()
+
+        if not mid_term:
+            print("⚠️  暂无压缩内容\n")
+            print("提示: 当Token使用率达到92%时会自动压缩")
+            print("或使用 /compress 命令手动触发压缩\n")
+            return
+
+        print(f"找到 {len(mid_term)} 个压缩片段:\n")
+
+        for i, msg in enumerate(mid_term, 1):
+            print("─" * 60)
+            print(f"压缩片段 #{i}")
+            print("─" * 60)
+
+            # 显示元数据
+            compressed = msg.get("compressed", False)
+            original_count = msg.get("original_count", "未知")
+            tokens = msg.get("tokens", 0)
+            timestamp = msg.get("timestamp", 0)
+
+            print(f"📊 元数据:")
+            print(f"  • 压缩状态: {'✅ 已压缩' if compressed else '❌ 未压缩'}")
+            print(f"  • 原始消息数: {original_count}条")
+            print(f"  • Token数: {tokens:,}")
+
+            if timestamp:
+                from utils import format_timestamp
+                print(f"  • 创建时间: {format_timestamp(timestamp)}")
+
+            print(f"\n📄 完整内容:\n")
+
+            # 显示完整内容
+            content = msg.get("content", "")
+            print(content)
+            print()
+
+        print("=" * 60)
+        print(f"💡 提示: 这些内容会在构建上下文时自动包含\n")
+
+    async def _show_current_context(self):
+        """
+        显示当前将要发送给LLM的上下文
+        """
+        print("\n" + "=" * 60)
+        print_colored("🔍 当前LLM上下文", "cyan", bold=True)
+        print("=" * 60 + "\n")
+
+        # 构建当前上下文（不包含用户查询）
+        context = await self.manager.get_context(current_query=None)
+
+        if not context:
+            print("⚠️  当前上下文为空\n")
+            return
+
+        print(f"上下文包含 {len(context)} 条消息:\n")
+
+        # 计算总token数
+        total_tokens = self.client.count_messages_tokens(context)
+        usage_percent = (total_tokens / self.manager.max_tokens) * 100
+
+        for i, msg in enumerate(context, 1):
+            role = msg.get("role", "unknown")
+            content = msg.get("content", "")
+            tokens = msg.get("tokens", 0)
+
+            # 特殊标记
+            compressed = msg.get("compressed", False)
+            injected = msg.get("injected", False)
+            from_kb = msg.get("from_knowledge_base", False)
+
+            # 构建标签
+            tags = []
+            if compressed:
+                tags.append("压缩")
+            if injected:
+                tags.append("动态注入")
+            if from_kb:
+                tags.append("知识库")
+
+            tag_str = f" [{', '.join(tags)}]" if tags else ""
+
+            emoji = {"user": "👤", "assistant": "🤖", "system": "⚙️ "}.get(role, "❓")
+
+            print(f"{i}. {emoji} {role}{tag_str}")
+            print(f"   Token: {tokens:,}")
+
+            # 显示内容预览或完整内容
+            if len(content) > 300:
+                print(f"   预览: {content[:300]}...")
+                print(f"   [完整长度: {len(content)}字符]")
+            else:
+                print(f"   内容: {content}")
+
+            print()
+
+        print("─" * 60)
+        print(f"📊 上下文统计:")
+        print(f"  • 总Token数: {total_tokens:,} / {self.manager.max_tokens:,}")
+        print(f"  • 使用率: {usage_percent:.1f}%")
+        print(f"  • 剩余空间: {self.manager.max_tokens - total_tokens:,} tokens")
+
+        # 显示颜色提示
+        if usage_percent >= 80:
+            status = "🔴 高 - 建议压缩"
+        elif usage_percent >= 60:
+            status = "🟡 中等"
+        else:
+            status = "🟢 正常"
+
+        print(f"  • 状态: {status}")
+        print("=" * 60 + "\n")
+
+        # 提供查看完整内容的选项
+        if any(len(msg.get("content", "")) > 300 for msg in context):
+            show_full = input("是否显示所有消息的完整内容？(y/n): ").strip().lower()
+            if show_full == 'y':
+                print("\n" + "=" * 60)
+                print_colored("📄 完整上下文内容", "cyan", bold=True)
+                print("=" * 60 + "\n")
+
+                for i, msg in enumerate(context, 1):
+                    role = msg.get("role", "unknown")
+                    content = msg.get("content", "")
+
+                    print(f"{'─' * 60}")
+                    print(f"消息 #{i} - {role}")
+                    print(f"{'─' * 60}")
+                    print(content)
+                    print()
+
+                print("=" * 60 + "\n")
 
     def _print_goodbye(self):
         """
