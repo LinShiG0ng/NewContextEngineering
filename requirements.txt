@@ -1,0 +1,20 @@
+# LLM API客户端
+openai>=1.0.0              # OpenAI官方SDK
+anthropic>=0.18.0          # Anthropic官方SDK
+httpx>=0.25.0              # 异步HTTP客户端
+aiohttp>=3.9.0             # 备用异步HTTP客户端
+
+# Token计数
+tiktoken>=0.5.0            # OpenAI的token计数器（推荐）
+
+# 终端美化
+rich>=13.0.0               # 美化终端输出
+colorama>=0.4.6            # 跨平台颜色支持
+
+# 配置管理
+python-dotenv>=1.0.0       # .env文件加载
+pyyaml>=6.0                # YAML配置文件支持
+
+# 开发工具
+pytest>=7.0.0              # 单元测试
+pytest-asyncio>=0.21.0     # 异步测试支持

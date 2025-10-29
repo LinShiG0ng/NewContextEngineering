@@ -1,0 +1,71 @@
+# 配置文件示例
+# 复制此文件为 config.yaml 并根据需要修改
+
+# ==================== LLM API配置 ====================
+provider: openai  # openai / anthropic / ollama / custom
+model: gpt-3.5-turbo
+max_tokens: 8000
+temperature: 0.7
+stream: true
+
+# API Base URL（可选）
+# base_url: https://api.openai.com/v1
+
+# 注意：API Key应该放在 .env 文件中，而不是这里
+# 以保护敏感信息
+
+
+# ==================== 上下文管理配置 ====================
+
+# Token阈值
+warning_threshold: 0.6    # 60% - 黄色警告
+error_threshold: 0.8      # 80% - 红色警告
+auto_compact_threshold: 0.92  # 92% - 自动压缩
+
+# 存储配置
+short_term_size: 5        # 短期存储容量（消息数）
+mid_term_size: 30         # 中期存储容量（消息数）
+
+# 压缩配置
+target_compression_ratio: 0.7   # 目标压缩率 70%
+min_quality_retention: 0.9      # 最低信息保留率 90%
+
+# 注入配置
+relevance_threshold: 0.5        # 相关性阈值
+max_injected_segments: 3        # 最多注入片段数
+
+
+# ==================== 显示配置 ====================
+progress_bar_width: 40
+verbose: false
+debug: false
+
+
+# ==================== OpenAI配置示例 ====================
+# provider: openai
+# model: gpt-3.5-turbo  # 或 gpt-4, gpt-4-turbo
+# max_tokens: 8000
+# temperature: 0.7
+
+
+# ==================== Anthropic配置示例 ====================
+# provider: anthropic
+# model: claude-3-5-sonnet-20241022  # 或 claude-3-opus-20240229
+# max_tokens: 8000
+# temperature: 0.7
+
+
+# ==================== Ollama配置示例 ====================
+# provider: ollama
+# base_url: http://localhost:11434/v1
+# model: qwen2.5:7b  # 或 llama3.1:8b, mistral:7b
+# max_tokens: 8000
+# temperature: 0.7
+
+
+# ==================== 自定义API配置示例 ====================
+# provider: custom
+# base_url: https://your-api-endpoint.com/v1
+# model: your-model-name
+# max_tokens: 8000
+# temperature: 0.7
