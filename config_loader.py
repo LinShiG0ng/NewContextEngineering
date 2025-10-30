@@ -41,7 +41,7 @@ class ConfigLoader:
     支持多种配置来源，提供交互式配置向导
     """
 
-    def __init__(self, config_path: str = "./config.yaml", env_path: str = "./.env"):
+    def __init__(self, config_path: str = "D:\\WACHI\\EKO\\NewContextEngineering\\config.yaml", env_path: str = "./.env"):
         """
         初始化配置加载器
 

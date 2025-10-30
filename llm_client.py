@@ -54,10 +54,10 @@ class LLMClient:
         Args:
             config: 配置字典，包含provider, api_key, model等
         """
-        self.provider = config.get("provider", "openai")
+        self.provider = config.get("provider", "custom")
         self.api_key = config.get("api_key")
         self.base_url = config.get("base_url")
-        self.model = config.get("model", "gpt-3.5-turbo")
+        self.model = config.get("model", "qwen-plus")
         self.max_tokens = config.get("max_tokens", 8000)
         self.temperature = config.get("temperature", 0.7)
         self.timeout = config.get("timeout", 60)
