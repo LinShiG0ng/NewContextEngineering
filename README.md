@@ -11,12 +11,15 @@
 - ✅ **实时监控**: Token使用率可视化，自动触发压缩
 - ✅ **效果对比**: 对比压缩前后的API响应质量
 - ✅ **交互式体验**: 完整的命令行界面
+- 🆕 **Web可视化后台**: 现代化Web界面，实时查看压缩过程和结果
 
 ## 📋 项目结构
 
 ```
 context_engineering_demo/
-├── main.py                    # 主入口，交互式演示
+├── main.py                    # 主入口，交互式演示（命令行）
+├── web_server.py              # Web服务器入口（Web界面）
+├── start_web.sh               # Web服务启动脚本
 ├── context_manager.py         # 上下文管理器（核心）
 ├── compressor.py             # AU2智能压缩算法
 ├── storage.py                # 三层存储系统
@@ -29,8 +32,11 @@ context_engineering_demo/
 ├── config.yaml.example       # 配置文件示例
 ├── .env.example              # 环境变量示例
 ├── requirements.txt          # 依赖列表
+├── web/                      # Web前端文件
+│   └── index.html            # Web界面
 ├── workspace/                # 运行时数据目录
-└── README.md                 # 本文件
+├── README.md                 # 本文件
+└── WEB_GUIDE.md              # Web使用指南
 ```
 
 ## 🚀 快速开始
@@ -75,6 +81,32 @@ LLM_MODEL=gpt-3.5-turbo
 3. （可选）编辑 `config.yaml` 调整参数。
 
 ### 3. 启动演示
+
+#### 方式A: Web可视化界面（推荐）
+
+```bash
+# 启动Web服务器
+./start_web.sh
+
+# 或直接运行
+python web_server.py
+```
+
+然后在浏览器访问：
+- 主页: http://localhost:8000
+- API文档: http://localhost:8000/docs
+
+**Web界面特性:**
+- 🎨 现代化响应式设计
+- 📊 实时Token使用率监控
+- 💬 实时对话交互
+- 📈 统计数据可视化
+- 🔍 查看当前上下文和压缩内容
+- ⚡ WebSocket实时更新
+
+详细使用说明请查看 [WEB_GUIDE.md](WEB_GUIDE.md)
+
+#### 方式B: 命令行界面
 
 ```bash
 python main.py
