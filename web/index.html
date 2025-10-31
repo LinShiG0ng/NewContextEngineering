@@ -364,7 +364,10 @@
 
                     <el-divider></el-divider>
 
-                    <div style="display: flex; gap: 10px;">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <el-button type="success" @click="showImportDialog">
+                            📥 导入对话
+                        </el-button>
                         <el-button type="warning" @click="manualCompress" :loading="compressing">
                             手动压缩
                         </el-button>
@@ -488,6 +491,112 @@
                 </div>
             </div>
         </div>
+
+        <!-- 导入对话对话框 -->
+        <el-dialog
+            v-model="importDialogVisible"
+            title="📥 导入对话记录"
+            width="800px"
+            @close="resetImportDialog"
+        >
+            <div>
+                <el-alert
+                    title="支持多种格式"
+                    type="info"
+                    :closable="false"
+                    style="margin-bottom: 15px;"
+                >
+                    <p>支持以下格式的JSON对话记录：</p>
+                    <ul style="margin: 5px 0 0 20px;">
+                        <li>ChatGPT导出格式</li>
+                        <li>Claude导出格式</li>
+                        <li>通用格式 (包含role和content字段)</li>
+                    </ul>
+                </el-alert>
+
+                <el-form label-width="100px">
+                    <el-form-item label="格式类型">
+                        <el-radio-group v-model="importFormat">
+                            <el-radio label="auto">自动检测</el-radio>
+                            <el-radio label="chatgpt">ChatGPT</el-radio>
+                            <el-radio label="claude">Claude</el-radio>
+                            <el-radio label="generic">通用格式</el-radio>
+                        </el-radio-group>
+                    </el-form-item>
+
+                    <el-form-item label="对话JSON">
+                        <el-input
+                            v-model="importJsonData"
+                            type="textarea"
+                            :rows="12"
+                            placeholder='粘贴JSON格式的对话记录，例如：
+[
+  {"role": "user", "content": "你好"},
+  {"role": "assistant", "content": "你好！有什么可以帮助你的吗？"}
+]'
+                        ></el-input>
+                    </el-form-item>
+
+                    <el-form-item label="自动压缩">
+                        <el-switch v-model="importAutoCompress"></el-switch>
+                        <span style="margin-left: 10px; color: #909399; font-size: 13px;">
+                            导入后自动检测是否需要压缩
+                        </span>
+                    </el-form-item>
+                </el-form>
+
+                <el-collapse style="margin-top: 15px;">
+                    <el-collapse-item title="📖 查看格式示例" name="1">
+                        <el-tabs>
+                            <el-tab-pane label="通用格式">
+                                <pre style="background: #f5f7fa; padding: 10px; border-radius: 5px; font-size: 12px;">
+[
+  {"role": "user", "content": "你好"},
+  {"role": "assistant", "content": "你好！有什么可以帮助你的吗？"},
+  {"role": "user", "content": "告诉我关于Python的信息"}
+]</pre>
+                            </el-tab-pane>
+                            <el-tab-pane label="ChatGPT格式">
+                                <pre style="background: #f5f7fa; padding: 10px; border-radius: 5px; font-size: 12px;">
+{
+  "mapping": {
+    "abc123": {
+      "message": {
+        "author": {"role": "user"},
+        "content": {"parts": ["你好"]},
+        "create_time": 1234567890
+      }
+    }
+  }
+}</pre>
+                            </el-tab-pane>
+                            <el-tab-pane label="Claude格式">
+                                <pre style="background: #f5f7fa; padding: 10px; border-radius: 5px; font-size: 12px;">
+{
+  "messages": [
+    {"role": "user", "content": "你好"},
+    {"role": "assistant", "content": "你好！"}
+  ]
+}</pre>
+                            </el-tab-pane>
+                        </el-tabs>
+                    </el-collapse-item>
+                </el-collapse>
+            </div>
+
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="importDialogVisible = false">取消</el-button>
+                    <el-button
+                        type="primary"
+                        @click="importConversation"
+                        :loading="importing"
+                    >
+                        导入并测试压缩
+                    </el-button>
+                </span>
+            </template>
+        </el-dialog>
     </div>
 
     <!-- Vue 3 -->
@@ -532,6 +641,13 @@
                     segments: []
                 });
                 const messagesContainer = ref(null);
+
+                // 导入相关状态
+                const importing = ref(false);
+                const importDialogVisible = ref(false);
+                const importJsonData = ref('');
+                const importFormat = ref('auto');
+                const importAutoCompress = ref(true);
 
                 // WebSocket
                 let ws = null;
@@ -787,6 +903,105 @@
                     }
                 }
 
+                function showImportDialog() {
+                    importDialogVisible.value = true;
+                }
+
+                function resetImportDialog() {
+                    importJsonData.value = '';
+                    importFormat.value = 'auto';
+                    importAutoCompress.value = true;
+                }
+
+                async function importConversation() {
+                    if (!importJsonData.value.trim()) {
+                        ElementPlus.ElMessage({
+                            message: '请粘贴JSON格式的对话记录',
+                            type: 'warning'
+                        });
+                        return;
+                    }
+
+                    importing.value = true;
+
+                    try {
+                        const response = await fetch('/api/import', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                json_data: importJsonData.value,
+                                format_type: importFormat.value,
+                                auto_compress: importAutoCompress.value
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.detail || '导入失败');
+                        }
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            // 关闭对话框
+                            importDialogVisible.value = false;
+
+                            // 显示成功消息
+                            let message = data.message;
+                            if (data.compressed) {
+                                message += `\n已自动压缩，节省 ${data.compression_stats.saved_tokens} tokens`;
+                            }
+
+                            ElementPlus.ElNotification({
+                                title: '导入成功',
+                                message: message,
+                                type: 'success',
+                                duration: 5000
+                            });
+
+                            // 显示导入统计
+                            if (data.import_stats) {
+                                const stats = data.import_stats;
+                                ElementPlus.ElNotification({
+                                    title: '导入统计',
+                                    message: `
+                                        总消息数: ${stats.total_messages}
+                                        用户消息: ${stats.user_messages}
+                                        助手消息: ${stats.assistant_messages}
+                                        平均长度: ${stats.avg_message_length} 字符
+                                    `,
+                                    type: 'info',
+                                    duration: 5000
+                                });
+                            }
+
+                            // 刷新所有数据
+                            await Promise.all([
+                                loadHistory(),
+                                loadUsage(),
+                                loadStats(),
+                                loadContext(),
+                                loadCompressed()
+                            ]);
+
+                            // 重置对话框
+                            resetImportDialog();
+                        }
+
+                    } catch (error) {
+                        console.error('导入失败:', error);
+                        ElementPlus.ElMessage({
+                            message: '导入失败: ' + error.message,
+                            type: 'error',
+                            duration: 5000
+                        });
+                    } finally {
+                        importing.value = false;
+                    }
+                }
+
                 async function refreshAll() {
                     loading.value = true;
                     try {
@@ -884,6 +1099,7 @@
                     loading,
                     sending,
                     compressing,
+                    importing,
                     userInput,
                     messages,
                     usage,
@@ -891,6 +1107,10 @@
                     context,
                     compressed,
                     messagesContainer,
+                    importDialogVisible,
+                    importJsonData,
+                    importFormat,
+                    importAutoCompress,
                     systemStatus,
                     usageLevel,
                     getRoleEmoji,
@@ -899,6 +1119,9 @@
                     manualCompress,
                     resetConversation,
                     exportHistory,
+                    showImportDialog,
+                    resetImportDialog,
+                    importConversation,
                     refreshAll,
                     loadContext,
                     loadCompressed

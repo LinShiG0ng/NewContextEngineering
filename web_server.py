@@ -30,6 +30,7 @@ from context_manager import ContextManager
 from llm_client import LLMClient, MockLLMClient
 from config_loader import load_config
 from utils import estimate_cost
+from conversation_importer import ConversationImporter
 
 
 # ============================================================================
@@ -53,6 +54,13 @@ class ConfigRequest(BaseModel):
     model: Optional[str] = None
     api_key: Optional[str] = None
     max_tokens: Optional[int] = None
+
+
+class ImportRequest(BaseModel):
+    """导入对话请求"""
+    json_data: str
+    format_type: str = "auto"
+    auto_compress: bool = True
 
 
 # ============================================================================
@@ -502,6 +510,100 @@ async def export_history():
                 "message": "导出失败"
             }
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/import")
+async def import_conversation(request: ImportRequest):
+    """
+    导入对话记录
+
+    支持多种格式：
+    - ChatGPT导出格式
+    - Claude导出格式
+    - 通用对话格式 (role + content)
+    """
+    if not manager_instance or not client_instance:
+        raise HTTPException(status_code=500, detail="系统未初始化")
+
+    try:
+        # 创建导入器
+        importer = ConversationImporter()
+
+        # 导入对话
+        messages = importer.import_conversation(
+            json_data=request.json_data,
+            format_type=request.format_type
+        )
+
+        # 验证消息
+        if not importer.validate_messages(messages):
+            raise ValueError("导入的消息格式无效")
+
+        # 获取导入统计
+        import_stats = importer.get_import_statistics(messages)
+
+        # 广播导入开始事件
+        await ws_manager.broadcast({
+            "type": "import_start",
+            "data": {
+                "message_count": len(messages),
+                "stats": import_stats,
+                "timestamp": datetime.now().isoformat()
+            }
+        })
+
+        # 将消息添加到上下文管理器
+        for msg in messages:
+            await manager_instance.add_message(msg["role"], msg["content"])
+
+        # 广播导入完成
+        await ws_manager.broadcast({
+            "type": "import_complete",
+            "data": {
+                "message_count": len(messages),
+                "stats": import_stats,
+                "timestamp": datetime.now().isoformat()
+            }
+        })
+
+        # 获取当前使用率
+        usage_status = manager_instance.get_usage_status()
+
+        # 广播使用率更新
+        await ws_manager.broadcast({
+            "type": "usage_update",
+            "data": usage_status
+        })
+
+        # 如果需要，自动触发压缩
+        compression_result = None
+        if request.auto_compress:
+            compression_result = await manager_instance.compress_if_needed(force=False)
+
+            if compression_result.get("compressed"):
+                # 广播压缩事件
+                await ws_manager.broadcast({
+                    "type": "compression",
+                    "data": compression_result
+                })
+
+        return {
+            "success": True,
+            "message": f"成功导入 {len(messages)} 条消息",
+            "import_stats": import_stats,
+            "usage": usage_status,
+            "compressed": compression_result.get("compressed", False) if compression_result else False,
+            "compression_stats": {
+                "saved_tokens": compression_result.get("saved_tokens", 0),
+                "compression_ratio": compression_result.get("compression_ratio", 0),
+                "new_usage": compression_result.get("new_usage", 0)
+            } if compression_result and compression_result.get("compressed") else None
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
