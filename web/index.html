@@ -419,6 +419,9 @@
                     <el-button size="small" @click="loadContext" style="margin-left: 10px;">
                         刷新
                     </el-button>
+                    <el-button size="small" type="primary" @click="showFullContext" style="margin-left: 5px;">
+                        📄 查看完整内容
+                    </el-button>
                 </div>
                 <div v-if="context.messages.length > 0">
                     <div style="margin-bottom: 15px; padding: 10px; background: #f0f9ff; border-radius: 8px;">
@@ -597,6 +600,73 @@
                 </span>
             </template>
         </el-dialog>
+
+        <!-- 查看完整上下文对话框 -->
+        <el-dialog
+            v-model="fullContextDialogVisible"
+            title="📄 完整上下文内容"
+            width="90%"
+            fullscreen
+            @close="closeFullContext"
+        >
+            <div>
+                <el-alert
+                    title="这是实际发送给LLM的完整上下文"
+                    type="info"
+                    :closable="false"
+                    style="margin-bottom: 15px;"
+                >
+                    <p>包含所有消息的完整内容，可以观察压缩后的效果</p>
+                </el-alert>
+
+                <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                    <el-radio-group v-model="fullContextFormat" @change="loadFullContext">
+                        <el-radio-button label="text">📝 格式化文本</el-radio-button>
+                        <el-radio-button label="markdown">📋 Markdown</el-radio-button>
+                        <el-radio-button label="json">💻 JSON</el-radio-button>
+                    </el-radio-group>
+
+                    <div>
+                        <el-button
+                            size="small"
+                            @click="copyFullContext"
+                            :icon="copied ? 'Check' : 'DocumentCopy'"
+                        >
+                            {{ copied ? '已复制' : '复制内容' }}
+                        </el-button>
+                        <el-button
+                            size="small"
+                            @click="downloadFullContext"
+                            icon="Download"
+                        >
+                            下载
+                        </el-button>
+                    </div>
+                </div>
+
+                <div v-if="fullContextLoading" class="loading">
+                    <el-icon class="is-loading"><Loading /></el-icon>
+                    <span style="margin-left: 10px;">加载中...</span>
+                </div>
+
+                <div v-else style="background: #1e1e1e; color: #d4d4d4; padding: 20px; border-radius: 8px; max-height: 70vh; overflow-y: auto;">
+                    <pre style="margin: 0; white-space: pre-wrap; word-break: break-word; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; line-height: 1.6;">{{ fullContextContent }}</pre>
+                </div>
+
+                <div style="margin-top: 15px; padding: 10px; background: #f5f7fa; border-radius: 8px;">
+                    <strong>统计信息:</strong>
+                    <span style="margin-left: 20px;">消息数: {{ fullContextStats.message_count }}</span>
+                    <span style="margin-left: 20px;">Token数: {{ fullContextStats.total_tokens?.toLocaleString() }}</span>
+                    <span style="margin-left: 20px;">字符数: {{ fullContextContent.length.toLocaleString() }}</span>
+                </div>
+            </div>
+
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="fullContextDialogVisible = false">关闭</el-button>
+                </span>
+            </template>
+        </el-dialog>
     </div>
 
     <!-- Vue 3 -->
@@ -648,6 +718,17 @@
                 const importJsonData = ref('');
                 const importFormat = ref('auto');
                 const importAutoCompress = ref(true);
+
+                // 完整上下文查看相关状态
+                const fullContextDialogVisible = ref(false);
+                const fullContextLoading = ref(false);
+                const fullContextContent = ref('');
+                const fullContextFormat = ref('text');
+                const fullContextStats = ref({
+                    message_count: 0,
+                    total_tokens: 0
+                });
+                const copied = ref(false);
 
                 // WebSocket
                 let ws = null;
@@ -1002,6 +1083,116 @@
                     }
                 }
 
+                function showFullContext() {
+                    fullContextDialogVisible.value = true;
+                    loadFullContext();
+                }
+
+                function closeFullContext() {
+                    fullContextContent.value = '';
+                    fullContextStats.value = {
+                        message_count: 0,
+                        total_tokens: 0
+                    };
+                    copied.value = false;
+                }
+
+                async function loadFullContext() {
+                    fullContextLoading.value = true;
+
+                    try {
+                        const response = await fetch(`/api/context/full?format=${fullContextFormat.value}`);
+                        const data = await response.json();
+
+                        if (fullContextFormat.value === 'json') {
+                            // JSON格式需要美化
+                            fullContextContent.value = JSON.stringify(data.messages, null, 2);
+                            fullContextStats.value = {
+                                message_count: data.message_count,
+                                total_tokens: data.total_tokens
+                            };
+                        } else {
+                            // 文本和Markdown格式直接使用content
+                            fullContextContent.value = data.content;
+                            fullContextStats.value = {
+                                message_count: data.message_count,
+                                total_tokens: data.total_tokens
+                            };
+                        }
+
+                    } catch (error) {
+                        console.error('加载完整上下文失败:', error);
+                        ElementPlus.ElMessage({
+                            message: '加载失败: ' + error.message,
+                            type: 'error'
+                        });
+                    } finally {
+                        fullContextLoading.value = false;
+                    }
+                }
+
+                async function copyFullContext() {
+                    try {
+                        await navigator.clipboard.writeText(fullContextContent.value);
+                        copied.value = true;
+                        ElementPlus.ElMessage({
+                            message: '已复制到剪贴板',
+                            type: 'success'
+                        });
+
+                        // 2秒后重置状态
+                        setTimeout(() => {
+                            copied.value = false;
+                        }, 2000);
+
+                    } catch (error) {
+                        console.error('复制失败:', error);
+                        ElementPlus.ElMessage({
+                            message: '复制失败: ' + error.message,
+                            type: 'error'
+                        });
+                    }
+                }
+
+                function downloadFullContext() {
+                    try {
+                        // 确定文件扩展名
+                        const extensions = {
+                            'json': 'json',
+                            'text': 'txt',
+                            'markdown': 'md'
+                        };
+                        const ext = extensions[fullContextFormat.value] || 'txt';
+
+                        // 创建Blob
+                        const blob = new Blob([fullContextContent.value], { type: 'text/plain;charset=utf-8' });
+
+                        // 创建下载链接
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `context_full_${new Date().getTime()}.${ext}`;
+                        document.body.appendChild(a);
+                        a.click();
+
+                        // 清理
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+
+                        ElementPlus.ElMessage({
+                            message: '下载成功',
+                            type: 'success'
+                        });
+
+                    } catch (error) {
+                        console.error('下载失败:', error);
+                        ElementPlus.ElMessage({
+                            message: '下载失败: ' + error.message,
+                            type: 'error'
+                        });
+                    }
+                }
+
                 async function refreshAll() {
                     loading.value = true;
                     try {
@@ -1111,6 +1302,12 @@
                     importJsonData,
                     importFormat,
                     importAutoCompress,
+                    fullContextDialogVisible,
+                    fullContextLoading,
+                    fullContextContent,
+                    fullContextFormat,
+                    fullContextStats,
+                    copied,
                     systemStatus,
                     usageLevel,
                     getRoleEmoji,
@@ -1122,6 +1319,11 @@
                     showImportDialog,
                     resetImportDialog,
                     importConversation,
+                    showFullContext,
+                    closeFullContext,
+                    loadFullContext,
+                    copyFullContext,
+                    downloadFullContext,
                     refreshAll,
                     loadContext,
                     loadCompressed

@@ -294,6 +294,147 @@ async def get_context():
     }
 
 
+@app.get("/api/context/full")
+async def get_full_context(format: str = "json"):
+    """
+    获取完整的上下文内容（用于详细查看）
+
+    支持的格式：
+    - json: JSON格式
+    - text: 格式化文本
+    - markdown: Markdown格式
+    """
+    if not manager_instance or not client_instance:
+        raise HTTPException(status_code=500, detail="系统未初始化")
+
+    context = await manager_instance.get_context(current_query=None)
+
+    # 计算token数
+    total_tokens = client_instance.count_messages_tokens(context)
+    usage_percent = (total_tokens / manager_instance.max_tokens) * 100
+
+    if format == "json":
+        # 返回完整的JSON格式
+        return {
+            "format": "json",
+            "total_tokens": total_tokens,
+            "max_tokens": manager_instance.max_tokens,
+            "usage_percent": usage_percent,
+            "message_count": len(context),
+            "messages": context  # 返回完整的消息，包括所有元数据
+        }
+
+    elif format == "text":
+        # 格式化为易读的文本
+        lines = []
+        lines.append("=" * 80)
+        lines.append("完整上下文内容")
+        lines.append("=" * 80)
+        lines.append(f"总Token数: {total_tokens:,} / {manager_instance.max_tokens:,} ({usage_percent:.1f}%)")
+        lines.append(f"消息数量: {len(context)}")
+        lines.append("=" * 80)
+        lines.append("")
+
+        for i, msg in enumerate(context, 1):
+            role = msg.get("role", "unknown")
+            content = msg.get("content", "")
+            tokens = msg.get("tokens", 0)
+            compressed = msg.get("compressed", False)
+            injected = msg.get("injected", False)
+            from_kb = msg.get("from_knowledge_base", False)
+
+            # 构建标签
+            tags = []
+            if compressed:
+                tags.append("压缩")
+            if injected:
+                tags.append("动态注入")
+            if from_kb:
+                tags.append("知识库")
+
+            tag_str = f" [{', '.join(tags)}]" if tags else ""
+
+            lines.append(f"{'─' * 80}")
+            lines.append(f"消息 #{i} - {role.upper()}{tag_str}")
+            lines.append(f"Token数: {tokens:,}")
+            lines.append(f"{'─' * 80}")
+            lines.append(content)
+            lines.append("")
+
+        lines.append("=" * 80)
+
+        return {
+            "format": "text",
+            "content": "\n".join(lines),
+            "total_tokens": total_tokens,
+            "message_count": len(context)
+        }
+
+    elif format == "markdown":
+        # 格式化为Markdown
+        lines = []
+        lines.append("# 完整上下文内容")
+        lines.append("")
+        lines.append("## 📊 统计信息")
+        lines.append("")
+        lines.append(f"- **总Token数**: {total_tokens:,} / {manager_instance.max_tokens:,}")
+        lines.append(f"- **使用率**: {usage_percent:.1f}%")
+        lines.append(f"- **消息数量**: {len(context)}")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+        lines.append("## 💬 消息列表")
+        lines.append("")
+
+        for i, msg in enumerate(context, 1):
+            role = msg.get("role", "unknown")
+            content = msg.get("content", "")
+            tokens = msg.get("tokens", 0)
+            compressed = msg.get("compressed", False)
+            injected = msg.get("injected", False)
+            from_kb = msg.get("from_knowledge_base", False)
+
+            # 角色图标
+            emoji = {"user": "👤", "assistant": "🤖", "system": "⚙️"}.get(role, "❓")
+
+            # 构建标签
+            tags = []
+            if compressed:
+                tags.append("🔵 压缩")
+            if injected:
+                tags.append("🟢 动态注入")
+            if from_kb:
+                tags.append("📚 知识库")
+
+            lines.append(f"### {emoji} 消息 #{i} - {role.upper()}")
+            lines.append("")
+
+            if tags:
+                lines.append(f"**标签**: {' '.join(tags)}")
+                lines.append("")
+
+            lines.append(f"**Token数**: {tokens:,}")
+            lines.append("")
+            lines.append("**内容**:")
+            lines.append("")
+            lines.append("```")
+            lines.append(content)
+            lines.append("```")
+            lines.append("")
+            lines.append("---")
+            lines.append("")
+
+        return {
+            "format": "markdown",
+            "content": "\n".join(lines),
+            "total_tokens": total_tokens,
+            "message_count": len(context)
+        }
+
+    else:
+        raise HTTPException(status_code=400, detail=f"不支持的格式: {format}")
+
+
 @app.get("/api/compressed")
 async def get_compressed():
     """获取压缩内容"""
