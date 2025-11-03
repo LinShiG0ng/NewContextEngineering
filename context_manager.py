@@ -82,6 +82,9 @@ class ContextManager:
         self.system_context = None
         self._load_system_context()
 
+        # 保留的system prompt（来自压缩，永不压缩）
+        self.preserved_system_prompt = None
+
     def _load_system_context(self):
         """
         加载系统上下文（从知识库）
@@ -188,6 +191,11 @@ class ContextManager:
         # 执行压缩
         compression_result = await self.compressor.compress(all_messages)
 
+        # 保存system prompt（如果存在）
+        if compression_result.get("system_prompt"):
+            self.preserved_system_prompt = compression_result["system_prompt"]
+            print(f"🔒 System Prompt已保护，不会被压缩\n")
+
         # 更新存储
         # 清空短期和中期存储
         self.storage.clear_short_term()
@@ -233,6 +241,10 @@ class ContextManager:
             完整的消息列表
         """
         context = []
+
+        # 0. 首先添加保留的system prompt（如果存在，永远在最前面）
+        if self.preserved_system_prompt:
+            context.append(self.preserved_system_prompt)
 
         # 1. 添加系统上下文（知识库）
         if self.system_context:
@@ -308,6 +320,9 @@ class ContextManager:
             "avg_compression_ratio": 0.0,
             "injections": 0
         }
+
+        # 清除保留的system prompt
+        self.preserved_system_prompt = None
 
         # 重新加载系统上下文
         self._load_system_context()

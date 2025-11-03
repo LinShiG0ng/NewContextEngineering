@@ -85,13 +85,37 @@ class AU2Compressor:
         print("🔄 正在执行AU2智能压缩...")
         print("━" * 60 + "\n")
 
-        # 计算原始token数
+        # 分离system prompt（第一个system消息永远不压缩）
+        system_prompt = None
+        messages_to_compress = messages
+
+        if messages and messages[0].get("role") == "system":
+            system_prompt = messages[0]
+            messages_to_compress = messages[1:]
+            print("🔒 检测到System Prompt，将保持不压缩")
+            print(f"   • System Prompt Token数: {system_prompt.get('tokens', count_tokens(system_prompt.get('content', '')))}\n")
+
+        # 如果只有system prompt，无需压缩
+        if not messages_to_compress:
+            print("⚠️  只有System Prompt，无需压缩\n")
+            return {
+                "compressed_message": system_prompt,
+                "original_tokens": system_prompt.get("tokens", 0),
+                "compressed_tokens": system_prompt.get("tokens", 0),
+                "compression_ratio": 0,
+                "quality": 1.0,
+                "entities": {},
+                "elapsed_time": 0,
+                "system_prompt": system_prompt
+            }
+
+        # 计算原始token数（不包括system prompt）
         original_tokens = sum(msg.get("tokens", count_tokens(msg.get("content", "")))
-                             for msg in messages)
+                             for msg in messages_to_compress)
 
         # 阶段1: 消息分类
         print("阶段 1/8: 分类消息")
-        classified = self.classify_messages(messages)
+        classified = self.classify_messages(messages_to_compress)
         print(f"  • Critical: {len(classified['critical'])}条 (必须保留)")
         print(f"  • Important: {len(classified['important'])}条 (可压缩)")
         print(f"  • Contextual: {len(classified['contextual'])}条 (提取要点)")
@@ -193,7 +217,8 @@ class AU2Compressor:
             "compression_ratio": compression_ratio,
             "quality": quality,
             "entities": entities,
-            "elapsed_time": elapsed_time
+            "elapsed_time": elapsed_time,
+            "system_prompt": system_prompt  # 保留的system prompt（如果存在）
         }
 
     def classify_messages(self, messages: List[Dict]) -> Dict[str, List[Dict]]:
