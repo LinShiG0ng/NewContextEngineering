@@ -4,6 +4,7 @@ AU2智能压缩算法模块
 实现8段式压缩流程:
 1. 消息分类 (critical/important/contextual/redundant)
 2. 关键实体提取 (文件名、函数名、变量名、错误信息等)
+   + 安全测试实体 (IP、端口、漏洞、payload、工具等)
 3. 知识图谱构建 (实体之间的关系)
 4. 重要性评分 (基于引用次数、时间距离、错误相关性)
 5. 生成压缩摘要 (使用模板或规则)
@@ -12,6 +13,11 @@ AU2智能压缩算法模块
 8. 质量验证 (检查关键信息是否保留)
 
 AU2 = Adaptive Universal Understanding (自适应通用理解压缩)
+
+支持场景：
+- 编程开发（代码、函数、类、错误）
+- 渗透测试（工具、漏洞、payload、数据包）
+- 漏洞挖掘（CVE、漏洞类型、利用流程）
 """
 
 import time
@@ -29,6 +35,7 @@ from config import (
     TARGET_COMPRESSION_RATIO,
     MIN_QUALITY_RETENTION
 )
+from security_extensions import SecurityEntityExtractor, SecurityScenarioClassifier
 
 
 class AU2Compressor:
@@ -49,6 +56,10 @@ class AU2Compressor:
         """
         self.target_ratio = target_ratio
         self.min_quality = min_quality
+
+        # 初始化安全测试扩展
+        self.security_extractor = SecurityEntityExtractor()
+        self.security_classifier = SecurityScenarioClassifier()
 
         # 压缩统计
         self.stats = {
@@ -89,10 +100,35 @@ class AU2Compressor:
         # 阶段2: 提取实体
         print("阶段 2/8: 提取关键实体")
         entities = self.extract_entities(classified)
-        print(f"  • 文件: {len(entities['files'])}个")
-        print(f"  • 函数: {len(entities['functions'])}个")
-        print(f"  • 类: {len(entities['classes'])}个")
-        print(f"  • 错误: {len(entities['errors'])}个\n")
+
+        # 编程实体
+        if entities.get('files') or entities.get('functions'):
+            print("  [编程场景]")
+            if entities.get('files'):
+                print(f"    • 文件: {len(entities['files'])}个")
+            if entities.get('functions'):
+                print(f"    • 函数: {len(entities['functions'])}个")
+            if entities.get('classes'):
+                print(f"    • 类: {len(entities['classes'])}个")
+            if entities.get('errors'):
+                print(f"    • 错误: {len(entities['errors'])}个")
+
+        # 安全测试实体
+        if entities.get('ip_addresses') or entities.get('tools') or entities.get('vulnerabilities'):
+            print("  [安全测试场景]")
+            if entities.get('ip_addresses'):
+                print(f"    • IP地址: {len(entities['ip_addresses'])}个")
+            if entities.get('ports'):
+                print(f"    • 端口: {len(entities['ports'])}个")
+            if entities.get('tools'):
+                print(f"    • 工具: {len(entities['tools'])}个")
+            if entities.get('vulnerabilities'):
+                print(f"    • 漏洞: {len(entities['vulnerabilities'])}个")
+            if entities.get('cve_ids'):
+                print(f"    • CVE编号: {len(entities['cve_ids'])}个")
+            if entities.get('payloads'):
+                print(f"    • Payload: {len(entities['payloads'])}个")
+        print()
 
         # 阶段3: 构建知识图谱
         print("阶段 3/8: 构建知识图谱")
@@ -165,10 +201,12 @@ class AU2Compressor:
         阶段1: 消息分类
 
         将消息分为4个类别：
-        - critical: 错误信息、关键决策
-        - important: 重要讨论、代码实现
+        - critical: 错误信息、关键决策、漏洞发现
+        - important: 重要讨论、代码实现、工具执行
         - contextual: 一般对话、解释说明
         - redundant: 重复内容、简单确认
+
+        支持编程场景和安全测试场景
 
         Args:
             messages: 消息列表
@@ -183,7 +221,7 @@ class AU2Compressor:
             "redundant": []
         }
 
-        # 关键词模式
+        # 编程场景关键词
         critical_patterns = [
             r"error", r"exception", r"failed", r"bug", r"critical",
             r"错误", r"失败", r"异常", r"严重"
@@ -200,15 +238,26 @@ class AU2Compressor:
         ]
 
         for msg in messages:
-            content = msg.get("content", "").lower()
+            content = msg.get("content", "")
+            content_lower = content.lower()
 
+            # 优先使用安全场景分类器（如果检测到安全内容）
+            if self.security_classifier.is_tool_output(content) or \
+               self.security_classifier.is_packet_data(content):
+                # 使用安全场景分类
+                security_importance = self.security_classifier.classify_security_message(content)
+                msg["importance"] = security_importance
+                classified[security_importance].append(msg)
+                continue
+
+            # 编程场景分类
             # 检查critical
-            if any(re.search(pattern, content, re.IGNORECASE) for pattern in critical_patterns):
+            if any(re.search(pattern, content_lower, re.IGNORECASE) for pattern in critical_patterns):
                 msg["importance"] = "critical"
                 classified["critical"].append(msg)
 
             # 检查important
-            elif any(re.search(pattern, content, re.IGNORECASE) for pattern in important_patterns):
+            elif any(re.search(pattern, content_lower, re.IGNORECASE) for pattern in important_patterns):
                 msg["importance"] = "important"
                 classified["important"].append(msg)
 
@@ -229,6 +278,7 @@ class AU2Compressor:
         阶段2: 提取关键实体
 
         从所有消息中提取文件名、函数名、类名、错误等
+        支持编程场景和安全测试场景
 
         Args:
             classified: 分类后的消息
@@ -236,7 +286,8 @@ class AU2Compressor:
         Returns:
             实体字典
         """
-        all_entities = {
+        # 编程场景实体
+        programming_entities = {
             "files": set(),
             "functions": set(),
             "variables": set(),
@@ -245,19 +296,49 @@ class AU2Compressor:
             "imports": set()
         }
 
+        # 安全测试实体
+        security_entities = {
+            "ip_addresses": set(),
+            "ports": set(),
+            "domains": set(),
+            "urls": set(),
+            "tools": set(),
+            "vulnerabilities": set(),
+            "payloads": set(),
+            "http_methods": set(),
+            "status_codes": set(),
+            "headers": set(),
+            "cve_ids": set(),
+            "protocols": set()
+        }
+
         # 从所有消息中提取实体
         for category in classified.values():
             for msg in category:
                 content = msg.get("content", "")
-                entities = extract_entities(content)
 
-                for key in all_entities.keys():
-                    all_entities[key].update(entities.get(key, []))
+                # 提取编程实体
+                prog_ent = extract_entities(content)
+                for key in programming_entities.keys():
+                    programming_entities[key].update(prog_ent.get(key, []))
 
-        # 转换为列表并限制数量
+                # 提取安全测试实体
+                sec_ent = self.security_extractor.extract_security_entities(content)
+                for key in security_entities.keys():
+                    security_entities[key].update(sec_ent.get(key, []))
+
+        # 合并结果并限制数量
         result = {}
-        for key, values in all_entities.items():
-            result[key] = list(values)[:20]  # 每类最多保留20个
+
+        # 编程实体（每类最多20个）
+        for key, values in programming_entities.items():
+            if values:
+                result[key] = list(values)[:20]
+
+        # 安全测试实体（每类最多15个）
+        for key, values in security_entities.items():
+            if values:
+                result[key] = list(values)[:15]
 
         return result
 
