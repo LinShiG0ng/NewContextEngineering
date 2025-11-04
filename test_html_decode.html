@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>HTML解码测试</title>
+</head>
+<body>
+    <h1>HTML实体解码测试</h1>
+
+    <h2>测试用例</h2>
+    <div id="test-cases"></div>
+
+    <h2>测试结果</h2>
+    <div id="results"></div>
+
+    <script>
+        // HTML实体解码函数
+        function decodeHTMLEntities(text) {
+            const textarea = document.createElement('textarea');
+            textarea.innerHTML = text;
+            return textarea.value;
+        }
+
+        // 测试用例
+        const testCases = [
+            {
+                name: "XML标签编码",
+                input: "&lt;done&gt;true&lt;/done&gt;",
+                expected: "<done>true</done>"
+            },
+            {
+                name: "step标签",
+                input: "&lt;step&gt;\n&lt;id&gt;S4&lt;/id&gt;\n&lt;goal&gt;构造SQL注入测试payload&lt;/goal&gt;\n&lt;/step&gt;",
+                expected: "<step>\n<id>S4</id>\n<goal>构造SQL注入测试payload</goal>\n</step>"
+            },
+            {
+                name: "混合内容",
+                input: "使用nmap扫描: &lt;command&gt;nmap -sV 192.168.1.1&lt;/command&gt;",
+                expected: "使用nmap扫描: <command>nmap -sV 192.168.1.1</command>"
+            },
+            {
+                name: "引号和特殊字符",
+                input: "Test &quot;quoted&quot; text &amp; symbols",
+                expected: 'Test "quoted" text & symbols'
+            },
+            {
+                name: "无编码内容",
+                input: "普通文本没有HTML实体",
+                expected: "普通文本没有HTML实体"
+            }
+        ];
+
+        // 运行测试
+        const testCasesDiv = document.getElementById('test-cases');
+        const resultsDiv = document.getElementById('results');
+
+        testCases.forEach((test, index) => {
+            // 显示测试用例
+            const caseDiv = document.createElement('div');
+            caseDiv.style.cssText = 'margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 5px;';
+            caseDiv.innerHTML = `
+                <strong>测试 ${index + 1}: ${test.name}</strong><br>
+                <strong>输入:</strong> <code>${test.input}</code><br>
+                <strong>期望:</strong> <code>${test.expected}</code>
+            `;
+            testCasesDiv.appendChild(caseDiv);
+
+            // 执行测试
+            const actual = decodeHTMLEntities(test.input);
+            const passed = actual === test.expected;
+
+            const resultDiv = document.createElement('div');
+            resultDiv.style.cssText = `margin: 10px 0; padding: 10px; border-radius: 5px; ${passed ? 'background: #d4edda; color: #155724;' : 'background: #f8d7da; color: #721c24;'}`;
+            resultDiv.innerHTML = `
+                <strong>${passed ? '✅ 通过' : '❌ 失败'}: 测试 ${index + 1}</strong><br>
+                <strong>实际结果:</strong> <code>${actual}</code><br>
+                ${!passed ? `<strong>差异:</strong> 期望长度 ${test.expected.length}，实际长度 ${actual.length}` : ''}
+            `;
+            resultsDiv.appendChild(resultDiv);
+        });
+
+        // 显示总结
+        const passedCount = testCases.filter((test, i) => decodeHTMLEntities(test.input) === test.expected).length;
+        const summaryDiv = document.createElement('div');
+        summaryDiv.style.cssText = 'margin-top: 20px; padding: 15px; background: #e7f3ff; border-radius: 5px; font-weight: bold;';
+        summaryDiv.textContent = `测试完成: ${passedCount}/${testCases.length} 通过`;
+        resultsDiv.appendChild(summaryDiv);
+    </script>
+</body>
+</html>
