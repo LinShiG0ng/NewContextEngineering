@@ -156,20 +156,20 @@ class AU2Compressor:
 
         # 阶段3: 构建知识图谱
         print("阶段 3/8: 构建知识图谱")
-        graph = self.build_knowledge_graph(entities, messages)
+        graph = self.build_knowledge_graph(entities, messages_to_compress)
         print(f"  • 节点数: {graph['node_count']}")
         print(f"  • 关系数: {graph['edge_count']}\n")
 
         # 阶段4: 重要性评分
         print("阶段 4/8: 计算重要性评分")
-        scored_messages = self.score_messages(messages, graph)
+        scored_messages = self.score_messages(messages_to_compress, graph)
         print(f"  • 完成 (基于引用频率和时间距离)\n")
 
         # 阶段5: 生成压缩摘要
         print("阶段 5/8: 生成压缩摘要")
         summary = self.generate_summary(scored_messages, entities)
         compressed_tokens = count_tokens(summary)
-        print(f"  • 原始: {len(messages)}条消息, {original_tokens} tokens")
+        print(f"  • 原始: {len(messages_to_compress)}条消息, {original_tokens} tokens")
         print(f"  • 摘要: 1条消息, {compressed_tokens} tokens\n")
 
         # 阶段6: 保留关键代码块
@@ -184,7 +184,7 @@ class AU2Compressor:
 
         # 阶段8: 质量验证
         print("阶段 8/8: 质量验证")
-        quality = self.validate_quality(messages, restructured['compressed_message'], entities)
+        quality = self.validate_quality(messages_to_compress, restructured['compressed_message'], entities)
         print(f"  • 关键实体保留: {'✅' if quality['entities_retained'] else '❌'} {quality['entity_retention']*100:.0f}%")
         print(f"  • 因果关系完整: {'✅' if quality['causality_intact'] else '❌'}")
         print(f"  • 代码上下文: {'✅' if quality['code_context'] else '❌'} 完整\n")
