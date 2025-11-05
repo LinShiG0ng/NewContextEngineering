@@ -20,6 +20,7 @@ import asyncio
 
 from storage import LayeredStorage
 from compressor import AU2Compressor
+from hybrid_compressor import HybridCompressor
 from injector import ContextInjector
 from knowledge_base import KnowledgeBase
 from utils import count_tokens, count_messages_tokens, format_message
@@ -28,7 +29,11 @@ from config import (
     WARNING_THRESHOLD,
     ERROR_THRESHOLD,
     AUTO_COMPACT_THRESHOLD,
-    WORKSPACE_DIR
+    WORKSPACE_DIR,
+    USE_LLM_COMPRESSION,
+    LLM_COMPRESSION_PROVIDER,
+    LLM_COMPRESSION_MODEL,
+    HYBRID_LLM_THRESHOLD
 )
 
 
@@ -62,7 +67,20 @@ class ContextManager:
 
         # 初始化各组件
         self.storage = LayeredStorage(workspace=workspace)
-        self.compressor = AU2Compressor()
+
+        # 根据配置选择压缩器
+        if USE_LLM_COMPRESSION:
+            self.compressor = HybridCompressor(
+                use_llm=True,
+                llm_provider=LLM_COMPRESSION_PROVIDER,
+                llm_model=LLM_COMPRESSION_MODEL,
+                llm_threshold=HYBRID_LLM_THRESHOLD
+            )
+            print(f"🤖 使用混合压缩系统 (LLM: {LLM_COMPRESSION_PROVIDER}/{LLM_COMPRESSION_MODEL})")
+        else:
+            self.compressor = AU2Compressor()
+            print("📊 使用规则压缩系统 (AU2)")
+
         self.injector = ContextInjector()
         self.knowledge_base = KnowledgeBase()
 

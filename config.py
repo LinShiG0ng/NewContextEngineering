@@ -38,11 +38,24 @@ WORKSPACE_DIR = "./workspace"
 
 # ==================== 压缩配置 ====================
 
+# 压缩方法 ("rule", "llm", "hybrid")
+COMPRESSION_METHOD = "hybrid"  # 默认使用混合方法
+
 # 目标压缩率（压缩后保留70%的信息）
 TARGET_COMPRESSION_RATIO = 0.7
 
 # 最低信息保留率（至少保留90%的关键信息）
 MIN_QUALITY_RETENTION = 0.9
+
+# LLM压缩相关配置
+USE_LLM_COMPRESSION = False  # 默认关闭，避免意外消耗API
+LLM_COMPRESSION_PROVIDER = "openai"  # "openai" 或 "anthropic"
+LLM_COMPRESSION_MODEL = "gpt-4o-mini"  # 压缩使用的模型
+LLM_COMPRESSION_TEMPERATURE = 0.3  # 较低的温度确保稳定输出
+LLM_COMPRESSION_MAX_TOKENS = 2000  # 压缩摘要的最大token数
+
+# 混合压缩阈值（消息数超过此值才使用LLM）
+HYBRID_LLM_THRESHOLD = 10
 
 # 消息分类权重
 MESSAGE_IMPORTANCE_WEIGHTS = {

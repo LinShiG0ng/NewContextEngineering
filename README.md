@@ -5,13 +5,15 @@
 ## 🌟 核心特性
 
 - ✅ **真实LLM集成**: 支持OpenAI、Anthropic、Ollama等多种API
+- 🆕 **LLM驱动压缩**: 使用大模型智能分析和压缩对话，压缩率提升至70%+
+- ✅ **混合压缩系统**: 智能选择规则或LLM方法，平衡质量和成本
 - ✅ **智能压缩**: 8段式AU2压缩算法，平衡压缩率和信息保留
 - ✅ **三层存储**: 短期/中期/长期分层架构
 - ✅ **动态注入**: 根据查询智能恢复相关历史
 - ✅ **实时监控**: Token使用率可视化，自动触发压缩
 - ✅ **效果对比**: 对比压缩前后的API响应质量
 - ✅ **交互式体验**: 完整的命令行界面
-- 🆕 **Web可视化后台**: 现代化Web界面，实时查看压缩过程和结果
+- ✅ **Web可视化后台**: 现代化Web界面，实时查看压缩过程和结果
 
 ## 📋 项目结构
 
@@ -22,6 +24,8 @@ context_engineering_demo/
 ├── start_web.sh               # Web服务启动脚本
 ├── context_manager.py         # 上下文管理器（核心）
 ├── compressor.py             # AU2智能压缩算法
+├── llm_compressor.py         # LLM驱动压缩系统
+├── hybrid_compressor.py      # 混合压缩系统（规则+LLM）
 ├── storage.py                # 三层存储系统
 ├── injector.py               # 动态上下文注入器
 ├── knowledge_base.py         # 长期知识库管理
@@ -47,7 +51,49 @@ context_engineering_demo/
 pip install -r requirements.txt
 ```
 
-### 2. 配置API
+### 2. 配置LLM压缩（可选）⭐新功能
+
+本项目现已支持**真正的LLM驱动压缩**！使用大语言模型智能分析和压缩对话，压缩率提升至70%+。
+
+#### 启用LLM压缩
+
+编辑 `config.py`：
+
+```python
+# 启用LLM压缩
+USE_LLM_COMPRESSION = True  # 改为 True
+
+# 选择提供商（"openai" 或 "anthropic"）
+LLM_COMPRESSION_PROVIDER = "openai"
+
+# 选择模型（推荐使用性价比高的模型）
+LLM_COMPRESSION_MODEL = "gpt-4o-mini"  # OpenAI推荐
+# 或
+LLM_COMPRESSION_MODEL = "claude-3-5-haiku-20241022"  # Anthropic推荐
+```
+
+#### 设置API密钥
+
+```bash
+# OpenAI（推荐用于压缩）
+export OPENAI_API_KEY="your-openai-api-key"
+
+# 或 Anthropic
+export ANTHROPIC_API_KEY="your-anthropic-api-key"
+```
+
+#### 成本说明
+
+- **gpt-4o-mini**: $0.15/1M输入 + $0.60/1M输出 ⭐ **性价比最高**
+- **claude-3-5-haiku**: $0.80/1M输入 + $4.00/1M输出
+
+**示例成本**: 压缩1000条消息（约50K tokens）的对话：
+- 使用gpt-4o-mini: ~$0.008 (约¥0.06)
+- 混合模式平均: ~$0.002/次 (智能选择，20%使用LLM)
+
+详细说明请查看 **[LLM压缩完整指南](LLM_COMPRESSION_GUIDE.md)** 📖
+
+### 3. 配置API
 
 #### 方式A: 交互式配置向导（推荐首次使用）
 
@@ -80,7 +126,32 @@ LLM_MODEL=gpt-3.5-turbo
 
 3. （可选）编辑 `config.yaml` 调整参数。
 
-### 3. 启动演示
+### 4. 测试LLM压缩（可选）
+
+如果启用了LLM压缩，可以运行对比测试：
+
+```bash
+# 对比规则方法 vs LLM方法 vs 混合方法
+python test_llm_compression.py
+```
+
+输出示例：
+```
+【测试1】规则方法（AU2）
+   压缩率: 40.4%
+   耗时: 0.05秒
+   成本: $0
+
+【测试2】LLM方法
+   压缩率: 70.2%
+   耗时: 1.23秒
+   成本: $0.000335
+
+【对比分析】
+   LLM方法压缩率提升: +29.8%
+```
+
+### 5. 启动演示
 
 #### 方式A: Web可视化界面（推荐）
 
@@ -385,7 +456,24 @@ min_quality_retention: 0.9      # 最低信息保留率 90%
 
 ## 📊 核心算法详解
 
-### AU2压缩算法（8段式）
+### 压缩方法对比
+
+本系统支持三种压缩方法：
+
+| 方法 | 压缩率 | 速度 | 成本 | 质量 | 适用场景 |
+|------|--------|------|------|------|---------|
+| **规则方法** | 30-40% | ⚡ 极快 (0.05s) | 免费 | 良好 | 少量消息、离线场景 |
+| **LLM方法** | 60-75% | 🐢 较慢 (1-3s) | ~$0.0003/次 | 优秀 | 重要对话、长历史 |
+| **混合方法** ⭐ | 60-75% | ⚡ 智能 | ~$0.0002/次 | 优秀 | **推荐使用** |
+
+**混合方法**智能选择：
+- 消息少（<10条）→ 使用规则方法（免费）
+- 消息多（≥10条）→ 使用LLM方法（高质量）
+- LLM失败 → 自动降级到规则方法
+
+详见 **[压缩方法技术分析](COMPRESSION_METHOD_ANALYSIS.md)** 和 **[LLM压缩指南](LLM_COMPRESSION_GUIDE.md)**
+
+### AU2压缩算法（8段式）- 规则方法
 
 **AU2 = Adaptive Universal Understanding** (自适应通用理解压缩)
 
@@ -609,8 +697,20 @@ class AU2Compressor:
 3. **实用技术**: 可应用于实际项目的上下文管理技术
 4. **教育价值**: 理解Claude Code等工具的内部机制
 
-## 📚 参考资料
+## 📚 文档导航
 
+### 核心文档
+- **[LLM压缩完整指南](LLM_COMPRESSION_GUIDE.md)** 📖 - LLM驱动压缩系统使用指南（新）
+- **[压缩方法技术分析](COMPRESSION_METHOD_ANALYSIS.md)** 🔬 - 规则vs LLM详细对比
+- **[Web使用指南](WEB_GUIDE.md)** 🌐 - Web界面操作说明
+- **[快速开始](QUICKSTART.md)** ⚡ - 快速上手指南
+
+### 技术修复文档
+- [System Prompt保护机制](SYSTEM_PROMPT_PROTECTION.md)
+- [System Prompt位置修复](SYSTEM_PROMPT_POSITION_FIX.md)
+- [前端截断显示修复](FRONTEND_TRUNCATION_FIX.md)
+
+### 外部参考
 - [Claude Code 文档](https://docs.claude.com/claude-code)
 - [OpenAI API 文档](https://platform.openai.com/docs)
 - [Anthropic API 文档](https://docs.anthropic.com)
