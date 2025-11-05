@@ -85,28 +85,40 @@ class AU2Compressor:
         print("🔄 正在执行AU2智能压缩...")
         print("━" * 60 + "\n")
 
-        # 分离system prompt（第一个system消息永远不压缩）
-        system_prompt = None
-        messages_to_compress = messages
+        # 分离所有未压缩的system消息（永远不压缩）
+        system_prompts = []
+        messages_to_compress = []
 
-        if messages and messages[0].get("role") == "system":
-            system_prompt = messages[0]
-            messages_to_compress = messages[1:]
-            print("🔒 检测到System Prompt，将保持不压缩")
-            print(f"   • System Prompt Token数: {system_prompt.get('tokens', count_tokens(system_prompt.get('content', '')))}\n")
+        for msg in messages:
+            # 识别未压缩的system消息作为system prompt
+            if msg.get("role") == "system" and not msg.get("compressed", False):
+                system_prompts.append(msg)
+            else:
+                messages_to_compress.append(msg)
 
-        # 如果只有system prompt，无需压缩
+        if system_prompts:
+            print(f"🔒 检测到 {len(system_prompts)} 个System Prompt，将保持不压缩")
+            for i, sp in enumerate(system_prompts, 1):
+                tokens = sp.get('tokens', count_tokens(sp.get('content', '')))
+                print(f"   {i}. System Prompt Token数: {tokens}")
+            print()
+
+        # 如果只有system prompts，无需压缩
         if not messages_to_compress:
             print("⚠️  只有System Prompt，无需压缩\n")
+            # 如果有多个system prompts，返回第一个作为主要的
+            primary_system_prompt = system_prompts[0] if system_prompts else None
+            total_tokens = sum(sp.get("tokens", 0) for sp in system_prompts)
+
             return {
-                "compressed_message": system_prompt,
-                "original_tokens": system_prompt.get("tokens", 0),
-                "compressed_tokens": system_prompt.get("tokens", 0),
+                "compressed_message": primary_system_prompt,
+                "original_tokens": total_tokens,
+                "compressed_tokens": total_tokens,
                 "compression_ratio": 0,
                 "quality": 1.0,
                 "entities": {},
                 "elapsed_time": 0,
-                "system_prompt": system_prompt
+                "system_prompts": system_prompts  # 返回所有system prompts
             }
 
         # 计算原始token数（不包括system prompt）
@@ -218,7 +230,7 @@ class AU2Compressor:
             "quality": quality,
             "entities": entities,
             "elapsed_time": elapsed_time,
-            "system_prompt": system_prompt  # 保留的system prompt（如果存在）
+            "system_prompts": system_prompts  # 保留的所有system prompts
         }
 
     def classify_messages(self, messages: List[Dict]) -> Dict[str, List[Dict]]:
