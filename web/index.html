@@ -446,8 +446,15 @@
                                 <el-tag size="small" type="info" v-if="msg.from_knowledge_base">知识库</el-tag>
                             </div>
                         </div>
-                        <div style="margin-top: 8px; color: #606266; font-size: 13px;">
-                            {{ msg.content.substring(0, 200) }}{{ msg.content.length > 200 ? '...' : '' }}
+                        <div style="margin-top: 8px; color: #606266; font-size: 13px; white-space: pre-wrap; word-break: break-word;">
+                            <template v-if="msg.role === 'system' && !msg.compressed">
+                                <!-- System prompt完整显示，不截断 -->
+                                {{ msg.content }}
+                            </template>
+                            <template v-else>
+                                <!-- 其他消息截断到200字符 -->
+                                {{ msg.content.substring(0, 200) }}{{ msg.content.length > 200 ? '...' : '' }}
+                            </template>
                         </div>
                     </div>
                 </div>
