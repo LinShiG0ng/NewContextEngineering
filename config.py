@@ -4,7 +4,44 @@
 定义所有系统默认配置和阈值
 """
 
+import os
 from typing import Dict
+from pathlib import Path
+
+# ==================== 加载环境变量 ====================
+
+def load_env():
+    """
+    从.env文件加载环境变量
+    支持Windows和其他操作系统
+    """
+    env_file = Path(__file__).parent / ".env"
+
+    if not env_file.exists():
+        return
+
+    try:
+        with open(env_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                # 跳过注释和空行
+                if not line or line.startswith("#"):
+                    continue
+
+                # 解析键值对
+                if "=" in line:
+                    key, value = line.split("=", 1)
+                    key = key.strip()
+                    value = value.strip()
+
+                    # 设置环境变量（如果尚未设置）
+                    if key and not os.getenv(key):
+                        os.environ[key] = value
+    except Exception as e:
+        print(f"⚠️  警告: 无法加载.env文件: {e}")
+
+# 自动加载.env文件
+load_env()
 
 # ==================== Token限制配置 ====================
 

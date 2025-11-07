@@ -55,9 +55,45 @@ pip install -r requirements.txt
 
 本项目现已支持**真正的LLM驱动压缩**！使用大语言模型智能分析和压缩对话，压缩率提升至70%+。
 
-#### 启用LLM压缩
+> **Windows用户看这里！** 👉 [Windows系统配置指南](WINDOWS_SETUP_GUIDE.md) - 专为Windows用户提供的详细配置教程
 
-编辑 `config.py`：
+#### 方法1: 交互式配置向导（推荐，支持Windows）⭐
+
+这是最简单的方法，适用于所有操作系统（包括Windows）：
+
+```bash
+python setup_llm_compression.py
+```
+
+按照提示操作即可，无需手动编辑任何文件！向导会自动帮你：
+- 创建 `.env` 文件并保存API密钥
+- 更新 `config.py` 配置
+- 设置所有必要的参数
+
+#### 方法2: 手动配置
+
+##### 启用LLM压缩
+
+**步骤1：** 创建 `.env` 文件（存储API密钥）
+
+```bash
+# 复制示例文件
+copy .env.example .env  # Windows
+# 或
+cp .env.example .env    # Linux/Mac
+```
+
+编辑 `.env` 文件，添加你的API密钥：
+
+```bash
+# OpenAI API密钥（用于LLM压缩）
+OPENAI_API_KEY=sk-your-openai-api-key
+
+# 或 Anthropic API密钥
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key
+```
+
+**步骤2：** 编辑 `config.py` 启用LLM压缩
 
 ```python
 # 启用LLM压缩
@@ -72,17 +108,9 @@ LLM_COMPRESSION_MODEL = "gpt-4o-mini"  # OpenAI推荐
 LLM_COMPRESSION_MODEL = "claude-3-5-haiku-20241022"  # Anthropic推荐
 ```
 
-#### 设置API密钥
+> **注意：** 不推荐使用系统环境变量设置API密钥（尤其是Windows），使用 `.env` 文件更简单安全
 
-```bash
-# OpenAI（推荐用于压缩）
-export OPENAI_API_KEY="your-openai-api-key"
-
-# 或 Anthropic
-export ANTHROPIC_API_KEY="your-anthropic-api-key"
-```
-
-#### 成本说明
+##### 成本说明
 
 - **gpt-4o-mini**: $0.15/1M输入 + $0.60/1M输出 ⭐ **性价比最高**
 - **claude-3-5-haiku**: $0.80/1M输入 + $4.00/1M输出
@@ -91,7 +119,10 @@ export ANTHROPIC_API_KEY="your-anthropic-api-key"
 - 使用gpt-4o-mini: ~$0.008 (约¥0.06)
 - 混合模式平均: ~$0.002/次 (智能选择，20%使用LLM)
 
-详细说明请查看 **[LLM压缩完整指南](LLM_COMPRESSION_GUIDE.md)** 📖
+##### 相关文档
+
+- **[Windows系统配置指南](WINDOWS_SETUP_GUIDE.md)** 🪟 - Windows用户必看
+- **[LLM压缩完整指南](LLM_COMPRESSION_GUIDE.md)** 📖 - 详细使用说明
 
 ### 3. 配置API
 
@@ -700,6 +731,7 @@ class AU2Compressor:
 ## 📚 文档导航
 
 ### 核心文档
+- **[Windows系统配置指南](WINDOWS_SETUP_GUIDE.md)** 🪟 - Windows用户必看（新）
 - **[LLM压缩完整指南](LLM_COMPRESSION_GUIDE.md)** 📖 - LLM驱动压缩系统使用指南（新）
 - **[压缩方法技术分析](COMPRESSION_METHOD_ANALYSIS.md)** 🔬 - 规则vs LLM详细对比
 - **[Web使用指南](WEB_GUIDE.md)** 🌐 - Web界面操作说明
