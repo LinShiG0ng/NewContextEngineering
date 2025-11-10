@@ -215,14 +215,49 @@ class LLMCompressor:
         print(f"   提供商: {self.provider}")
         print("━" * 60 + "\n")
 
-        # 计算原始token数
+        # 分离system prompts（永不压缩原始的system prompts）
+        system_prompts = []
+        messages_to_compress = []
+
+        for msg in messages:
+            # 只保护未压缩的system消息（原始system prompts）
+            # 已压缩的system消息（压缩摘要）可以再次压缩
+            if msg.get("role") == "system" and not msg.get("compressed", False):
+                system_prompts.append(msg)
+            else:
+                messages_to_compress.append(msg)
+
+        if system_prompts:
+            print(f"🔒 检测到 {len(system_prompts)} 个System Prompt，将保持不压缩")
+            for i, sp in enumerate(system_prompts, 1):
+                tokens = sp.get("tokens", count_tokens(sp.get("content", "")))
+                print(f"   {i}. System Prompt Token数: {tokens}")
+            print()
+
+        # 如果没有要压缩的消息，直接返回
+        if not messages_to_compress:
+            return {
+                "compressed_message": system_prompts[0] if system_prompts else None,
+                "original_tokens": sum(sp.get("tokens", 0) for sp in system_prompts),
+                "compressed_tokens": sum(sp.get("tokens", 0) for sp in system_prompts),
+                "compression_ratio": 0,
+                "system_prompts": system_prompts,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "cost": 0,
+                "elapsed_time": 0,
+                "model": self.model,
+                "provider": self.provider
+            }
+
+        # 计算原始token数（只计算要压缩的消息）
         original_tokens = sum(msg.get("tokens", count_tokens(msg.get("content", "")))
-                             for msg in messages)
+                             for msg in messages_to_compress)
 
-        # 构建提示词
-        prompt = self._build_compression_prompt(messages, entities, target_ratio)
+        # 构建提示词（只压缩非system prompt的消息）
+        prompt = self._build_compression_prompt(messages_to_compress, entities, target_ratio)
 
-        print(f"📝 准备压缩 {len(messages)} 条消息 ({original_tokens:,} tokens)")
+        print(f"📝 准备压缩 {len(messages_to_compress)} 条消息 ({original_tokens:,} tokens)")
         print(f"🎯 目标压缩率: {target_ratio*100:.0f}%\n")
 
         try:
@@ -288,7 +323,9 @@ class LLMCompressor:
                 "cost": cost,
                 "elapsed_time": elapsed_time,
                 "model": self.model,
-                "provider": self.provider
+                "provider": self.provider,
+                "system_prompts": system_prompts,  # 保护的system prompts
+                "quality": 0.95  # LLM压缩的默认质量评分
             }
 
         except Exception as e:

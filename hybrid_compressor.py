@@ -146,8 +146,10 @@ class HybridCompressor:
                 result = await self._compress_with_rule(messages_to_compress)
                 self.stats["rule_compressions"] += 1
 
-            # 添加system_prompts到结果
-            result["system_prompts"] = system_prompts
+            # 合并system_prompts（防止丢失compressor发现的system prompts）
+            compressor_system_prompts = result.get("system_prompts", [])
+            all_system_prompts = system_prompts + compressor_system_prompts
+            result["system_prompts"] = all_system_prompts
             result["method"] = method
 
             return result
@@ -161,7 +163,10 @@ class HybridCompressor:
                 self.stats["rule_compressions"] += 1
 
                 result = await self._compress_with_rule(messages_to_compress)
-                result["system_prompts"] = system_prompts
+                # 合并system_prompts
+                compressor_system_prompts = result.get("system_prompts", [])
+                all_system_prompts = system_prompts + compressor_system_prompts
+                result["system_prompts"] = all_system_prompts
                 result["method"] = "rule_fallback"
                 return result
             else:
