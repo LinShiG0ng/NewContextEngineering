@@ -86,10 +86,13 @@ MIN_QUALITY_RETENTION = 0.9
 
 # LLM压缩相关配置
 USE_LLM_COMPRESSION = False  # 默认关闭，避免意外消耗API
-LLM_COMPRESSION_PROVIDER = "openai"  # "openai" 或 "anthropic"
+LLM_COMPRESSION_PROVIDER = "openai"  # "openai", "anthropic" 或 "qwen"
 LLM_COMPRESSION_MODEL = "gpt-4o-mini"  # 压缩使用的模型
 LLM_COMPRESSION_TEMPERATURE = 0.3  # 较低的温度确保稳定输出
 LLM_COMPRESSION_MAX_TOKENS = 2000  # 压缩摘要的最大token数
+
+# Qwen API配置（阿里云通义千问）
+QWEN_API_BASE = "https://dashscope.aliyuncs.com/compatible-mode/v1"  # Qwen API地址
 
 # 混合压缩阈值（消息数超过此值才使用LLM）
 HYBRID_LLM_THRESHOLD = 10

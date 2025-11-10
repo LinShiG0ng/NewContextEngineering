@@ -96,7 +96,7 @@ USE_LLM_COMPRESSION = False
     print_section("步骤2: 选择LLM提供商")
     print("支持的提供商:")
     print()
-    print("  1. OpenAI (推荐)")
+    print("  1. OpenAI")
     print("     - 模型: gpt-4o-mini (性价比最高)")
     print("     - 成本: $0.15/1M输入 + $0.60/1M输出")
     print("     - 需要: OPENAI_API_KEY")
@@ -106,8 +106,13 @@ USE_LLM_COMPRESSION = False
     print("     - 成本: $0.80/1M输入 + $4.00/1M输出")
     print("     - 需要: ANTHROPIC_API_KEY")
     print()
+    print("  3. Qwen (阿里云通义千问，推荐国内用户)")
+    print("     - 模型: qwen-plus-latest (性价比极高)")
+    print("     - 成本: ¥0.004/1K输入 + ¥0.012/1K输出")
+    print("     - 需要: DASHSCOPE_API_KEY")
+    print()
 
-    provider_choice = get_choice("选择提供商", ["1", "2"], default="1")
+    provider_choice = get_choice("选择提供商", ["1", "2", "3"], default="1")
 
     if provider_choice == "1":
         provider = "openai"
@@ -115,12 +120,18 @@ USE_LLM_COMPRESSION = False
         api_key_name = "OPENAI_API_KEY"
         print()
         print("✅ 已选择: OpenAI")
-    else:
+    elif provider_choice == "2":
         provider = "anthropic"
         default_model = "claude-3-5-haiku-20241022"
         api_key_name = "ANTHROPIC_API_KEY"
         print()
         print("✅ 已选择: Anthropic")
+    else:
+        provider = "qwen"
+        default_model = "qwen-plus-latest"
+        api_key_name = "DASHSCOPE_API_KEY"
+        print()
+        print("✅ 已选择: Qwen (通义千问)")
 
     # 步骤3: 输入API密钥
     print_section("步骤3: 输入API密钥")
@@ -130,9 +141,13 @@ USE_LLM_COMPRESSION = False
     if provider == "openai":
         print("💡 获取方式: https://platform.openai.com/api-keys")
         print("   格式: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
-    else:
+    elif provider == "anthropic":
         print("💡 获取方式: https://console.anthropic.com/settings/keys")
         print("   格式: sk-ant-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+    else:  # qwen
+        print("💡 获取方式: https://dashscope.console.aliyun.com/apiKey")
+        print("   格式: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+        print("   (需要先注册阿里云账号并开通DashScope服务)")
     print()
 
     api_key = get_input(f"请输入 {api_key_name}", required=True)
@@ -154,7 +169,7 @@ USE_LLM_COMPRESSION = False
             "3": "gpt-3.5-turbo"
         }
         model = models[model_choice]
-    else:
+    elif provider == "anthropic":
         print("可用模型:")
         print("  1. claude-3-5-haiku-20241022 (推荐，性价比高)")
         print("  2. claude-3-5-sonnet-20241022 (平衡质量和成本)")
@@ -166,6 +181,20 @@ USE_LLM_COMPRESSION = False
             "1": "claude-3-5-haiku-20241022",
             "2": "claude-3-5-sonnet-20241022",
             "3": "claude-3-opus-20240229"
+        }
+        model = models[model_choice]
+    else:  # qwen
+        print("可用模型:")
+        print("  1. qwen-plus-latest (推荐，性价比极高)")
+        print("  2. qwen-turbo-latest (更快，更便宜)")
+        print("  3. qwen-max-latest (最高质量)")
+        print()
+        model_choice = get_choice("选择模型", ["1", "2", "3"], default="1")
+
+        models = {
+            "1": "qwen-plus-latest",
+            "2": "qwen-turbo-latest",
+            "3": "qwen-max-latest"
         }
         model = models[model_choice]
 

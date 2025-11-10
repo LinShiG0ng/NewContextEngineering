@@ -34,7 +34,7 @@ class LLMCompressor:
         初始化LLM压缩器
 
         Args:
-            provider: LLM提供商 ("openai", "anthropic", "azure")
+            provider: LLM提供商 ("openai", "anthropic", "qwen")
             model: 模型名称
             api_key: API密钥
             max_tokens: 压缩摘要的最大token数
@@ -50,6 +50,8 @@ class LLMCompressor:
                 model = "gpt-4o-mini"
             elif self.provider == "anthropic":
                 model = "claude-3-5-haiku-20241022"
+            elif self.provider == "qwen":
+                model = "qwen-plus-latest"
             else:
                 model = "gpt-4o-mini"
 
@@ -63,6 +65,13 @@ class LLMCompressor:
         elif self.provider == "anthropic":
             self.client = AsyncAnthropic(
                 api_key=api_key or os.getenv("ANTHROPIC_API_KEY")
+            )
+        elif self.provider == "qwen":
+            # Qwen 使用 OpenAI 兼容的 API
+            from config import QWEN_API_BASE
+            self.client = AsyncOpenAI(
+                api_key=api_key or os.getenv("DASHSCOPE_API_KEY"),
+                base_url=QWEN_API_BASE
             )
         else:
             raise ValueError(f"不支持的provider: {provider}")
@@ -218,7 +227,8 @@ class LLMCompressor:
 
         try:
             # 调用LLM
-            if self.provider == "openai":
+            if self.provider == "openai" or self.provider == "qwen":
+                # Qwen 使用 OpenAI 兼容的 API，所以使用同样的方法
                 response = await self._compress_with_openai(prompt)
             elif self.provider == "anthropic":
                 response = await self._compress_with_anthropic(prompt)
@@ -286,7 +296,7 @@ class LLMCompressor:
             raise
 
     async def _compress_with_openai(self, prompt: str) -> Dict:
-        """使用OpenAI API压缩"""
+        """使用OpenAI API压缩（也支持Qwen等兼容API）"""
         response = await self.client.chat.completions.create(
             model=self.model,
             messages=[
@@ -300,14 +310,31 @@ class LLMCompressor:
         input_tokens = response.usage.prompt_tokens
         output_tokens = response.usage.completion_tokens
 
-        # 估算成本（根据模型）
-        if "gpt-4o" in self.model:
+        # 估算成本（根据模型和提供商）
+        if self.provider == "qwen":
+            # Qwen定价（阿里云通义千问）
+            # qwen-plus: ¥0.004/1K输入 + ¥0.012/1K输出
+            # qwen-turbo: ¥0.002/1K输入 + ¥0.006/1K输出
+            # qwen-max: ¥0.04/1K输入 + ¥0.12/1K输出
+            if "max" in self.model:
+                input_cost = input_tokens * 0.04 / 1000  # 人民币
+                output_cost = output_tokens * 0.12 / 1000
+            elif "turbo" in self.model:
+                input_cost = input_tokens * 0.002 / 1000
+                output_cost = output_tokens * 0.006 / 1000
+            else:  # plus 或 latest
+                input_cost = input_tokens * 0.004 / 1000
+                output_cost = output_tokens * 0.012 / 1000
+        elif "gpt-4o" in self.model:
+            # OpenAI GPT-4o定价（美元）
             input_cost = input_tokens * 2.5 / 1_000_000
             output_cost = output_tokens * 10 / 1_000_000
         elif "gpt-4" in self.model:
+            # OpenAI GPT-4定价
             input_cost = input_tokens * 30 / 1_000_000
             output_cost = output_tokens * 60 / 1_000_000
         else:  # gpt-3.5-turbo
+            # OpenAI GPT-3.5定价
             input_cost = input_tokens * 0.5 / 1_000_000
             output_cost = output_tokens * 1.5 / 1_000_000
 

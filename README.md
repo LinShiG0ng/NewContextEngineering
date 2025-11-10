@@ -207,6 +207,11 @@ ANTHROPIC_API_KEY=sk-ant-your-api-key
 - `claude-3-5-sonnet-20241022` 平衡
 - `claude-3-opus-20240229` 最高质量
 
+**Qwen/通义千问（推荐国内用户）：**
+- `qwen-plus-latest` ⭐ 性价比极高
+- `qwen-turbo-latest` 更快更便宜
+- `qwen-max-latest` 最高质量
+
 ## 📚 文档
 
 - **[快速开始](docs/QUICKSTART.md)** - 5分钟快速上手

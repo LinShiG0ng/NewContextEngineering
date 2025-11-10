@@ -137,6 +137,25 @@ python main.py
 - 成本：$0.80/1M输入 + $4.00/1M输出
 - 示例：压缩1000条消息约 $0.044（约¥0.32）
 
+### Qwen/通义千问（推荐国内用户）⭐
+
+1. 访问：https://dashscope.console.aliyun.com/apiKey
+2. 注册/登录阿里云账号
+3. 开通DashScope服务
+4. 创建API Key
+5. 复制密钥（格式：`sk-xxxxxxx`）
+6. 粘贴到 `.env` 文件（使用 `DASHSCOPE_API_KEY`）
+
+**推荐模型：** `qwen-plus-latest`
+- 成本：¥0.004/1K输入 + ¥0.012/1K输出
+- 示例：压缩1000条消息约 ¥0.2（约$0.028）
+
+**优势：**
+- ✅ 性价比极高（比OpenAI便宜约70%）
+- ✅ 国内访问速度快，无需代理
+- ✅ 支持中文理解优秀
+- ✅ API兼容OpenAI格式
+
 ## 🪟 Windows系统特别说明
 
 ### 环境变量设置
@@ -199,6 +218,14 @@ LLM_COMPRESSION_MODEL = "gpt-3.5-turbo"    # 经济实惠
 LLM_COMPRESSION_MODEL = "claude-3-5-haiku-20241022"   # 推荐
 LLM_COMPRESSION_MODEL = "claude-3-5-sonnet-20241022"  # 平衡
 LLM_COMPRESSION_MODEL = "claude-3-opus-20240229"      # 最高质量
+```
+
+**Qwen/通义千问（推荐国内用户）：**
+```python
+LLM_COMPRESSION_PROVIDER = "qwen"
+LLM_COMPRESSION_MODEL = "qwen-plus-latest"    # 推荐，性价比极高
+LLM_COMPRESSION_MODEL = "qwen-turbo-latest"   # 更快，更便宜
+LLM_COMPRESSION_MODEL = "qwen-max-latest"     # 最高质量
 ```
 
 ### 调整温度和输出长度
